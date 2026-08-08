@@ -4,9 +4,10 @@ dockerfilePath = "Dockerfile"
 watchPatterns = ["**/*.py", "requirements.txt", "Dockerfile", "railway.toml"]
 
 [deploy]
-# при старте накатываем миграции, затем поднимаем единый процесс (bot + api)
-startCommand = "alembic upgrade head && python runner.py"
+# Миграции до старта приложения — иначе healthcheck ждёт, пока alembic держит порт закрытым
+preDeployCommand = ["alembic upgrade head"]
+startCommand = "python -u runner.py"
 healthcheckPath = "/health"
-healthcheckTimeout = 120
+healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

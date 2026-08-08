@@ -19,14 +19,20 @@ app.include_router(api_router)
 
 @app.get("/health")
 async def health():
-    """Healthcheck без авторизации."""
+    """Liveness для Railway: процесс жив и слушает порт (без проверки БД)."""
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+async def ready():
+    """Readiness: приложение + база доступны."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        return {"status": "ok", "database": "connected"}
+        return {"status": "ready", "database": "connected"}
     except Exception:
-        logger.exception("Healthcheck failed")
+        logger.exception("Readiness check failed")
         return JSONResponse(
             status_code=503,
-            content={"status": "error", "database": "disconnected"},
+            content={"status": "not_ready", "database": "disconnected"},
         )

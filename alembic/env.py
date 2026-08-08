@@ -14,21 +14,13 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-
-def normalize_database_url(url: str) -> str:
-    """Railway отдаёт postgres:// или postgresql:// — приводим к asyncpg."""
-    if not url:
-        return url
-    if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+asyncpg://", 1)
-    if url.startswith("postgresql://") and "+asyncpg" not in url:
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
-
-
 load_dotenv()
+
+# После load_dotenv: Settings читает DATABASE_URL при импорте core.config
+from core.config import normalize_database_url  # noqa: E402
+
 config = context.config
-db_url = normalize_database_url(os.getenv("DATABASE_URL"))
+db_url = normalize_database_url(os.getenv("DATABASE_URL") or "")
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
 

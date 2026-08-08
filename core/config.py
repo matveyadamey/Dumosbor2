@@ -1,18 +1,30 @@
 from functools import lru_cache
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def normalize_database_url(url: str) -> str:
-    """Railway отдаёт postgres:// или postgresql:// — приводим к asyncpg."""
+    """Railway отдаёт postgres:// или postgresql:// — приводим к asyncpg.
+
+    Убираем libpq-параметры (sslmode и т.п.): asyncpg их не понимает.
+    """
     if not url:
         return url
     if url.startswith("postgres://"):
-        return url.replace("postgres://", "postgresql+asyncpg://", 1)
-    if url.startswith("postgresql://") and "+asyncpg" not in url:
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    return url
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql://") and "+asyncpg" not in url:
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    parsed = urlparse(url)
+    if not parsed.query:
+        return url
+
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    for key in ("sslmode", "ssl", "channel_binding"):
+        params.pop(key, None)
+    return urlunparse(parsed._replace(query=urlencode(params)))
 
 
 class Settings(BaseSettings):
