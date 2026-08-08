@@ -16,19 +16,37 @@ services:
       timeout: 5s
       retries: 10
 
-  app:
+  api:
     build: .
     restart: unless-stopped
-    command: sh -c "alembic upgrade head && python runner.py"
+    command: sh -c "alembic upgrade head && APP_MODE=api python -u runner.py"
     env_file: .env
+    environment:
+      APP_MODE: api
+      MEDIA_DIR: /app/media_data
     ports:
       - "8000:8000"
     volumes:
-      - media_data:${MEDIA_DIR}
+      - ./media_data:/app/media_data
     depends_on:
       db:
         condition: service_healthy
 
+  bot:
+    build: .
+    restart: unless-stopped
+    command: sh -c "APP_MODE=bot python -u runner.py"
+    env_file: .env
+    environment:
+      APP_MODE: bot
+      MEDIA_DIR: /app/media_data
+    volumes:
+      - ./media_data:/app/media_data
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+
 volumes:
   pg_data:
-  media_data:

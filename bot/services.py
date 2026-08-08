@@ -48,10 +48,10 @@ def _extract_media(message: Message) -> List[Tuple[str, object, str]]:
 
 
 async def buffer_media_group(message: Message) -> None:
-    """Собирает альбом (media_group) и обрабатывает его целиком после паузы."""
+    """Собирает альбом (media_group) и обрабатывает его целиком после паузы 1.5с."""
     gid = message.media_group_id
     if not gid:
-        await process_and_save([message])
+        await process_data([message])
         return
     _pending_albums.setdefault(gid, []).append(message)
     task = _pending_tasks.get(gid)
@@ -64,22 +64,27 @@ async def _flush_album(gid: str) -> None:
     messages = _pending_albums.pop(gid, [])
     _pending_tasks.pop(gid, None)
     if messages:
-        await process_and_save(messages)
+        await process_data(messages)
 
 
-async def process_and_save(messages: List[Message]) -> None:
+async def process_data(messages: List[Message]) -> None:
+    """Точка входа обработки входящих данных (альбом или одиночное сообщение)."""
     try:
-        await _process_and_save_inner(messages)
+        await save_text(messages)
     except Exception:
         logger.exception("Failed to process message(s)")
 
 
-async def _process_and_save_inner(messages: List[Message]) -> None:
+# backward-compatible aliases
+process_and_save = process_data
+
+
+async def save_text(messages: List[Message]) -> None:
+    """Запись в БД + сохранение медиа в shared volume."""
     bot = messages[0].bot
     base_message_id = messages[0].message_id
     image_path = await get_setting("image_path", "attachments")
 
-    # Собираем текст/подписи
     texts = []
     for m in messages:
         t = m.caption or m.text
@@ -87,7 +92,6 @@ async def _process_and_save_inner(messages: List[Message]) -> None:
             texts.append(t.strip())
     original_text = "\n".join(texts).strip()
 
-    # Скачиваем медиа и формируем вики-ссылки
     image_links: List[str] = []
     image_rows: List[Tuple[str, str]] = []
     index = 0
@@ -95,11 +99,20 @@ async def _process_and_save_inner(messages: List[Message]) -> None:
         for _kind, file_obj, ext in _extract_media(m):
             index += 1
             file_name = f"{base_message_id}_{index}{ext}"
-            buf = BytesIO()
-            await bot.download(file_obj, destination=buf)
-            dest = os.path.join(settings.media_dir, file_name)
-            with open(dest, "wb") as fh:
-                fh.write(buf.getvalue())
+            try:
+                buf = BytesIO()
+                await bot.download(file_obj, destination=buf)
+                dest = os.path.join(settings.media_dir, file_name)
+                os.makedirs(settings.media_dir, exist_ok=True)
+                with open(dest, "wb") as fh:
+                    fh.write(buf.getvalue())
+            except Exception:
+                logger.exception(
+                    "Failed to download/save media message_id=%s file=%s",
+                    base_message_id,
+                    file_name,
+                )
+                continue
             image_links.append(f"![[{image_path}/{file_name}]]\n")
             image_rows.append((file_name, file_name))
 
@@ -107,7 +120,13 @@ async def _process_and_save_inner(messages: List[Message]) -> None:
     if original_text:
         content += original_text
 
+    # short по «чистому» тексту без вики-ссылок на картинки
     short = len(original_text) < SHORT_THRESHOLD
+
+    # не сохраняем пустые апдейты без текста и медиа
+    if not content.strip():
+        logger.info("Skip empty message_id=%s", base_message_id)
+        return
 
     async with async_session_maker() as session:
         rec = TextRecord(message_id=base_message_id, content=content, short=short)
@@ -140,7 +159,11 @@ async def handle_youtube(text: str) -> None:
                 logger.exception("yt_dlp failed for %s", url)
                 meta = {"title": url, "duration": None}
             session.add(
-                YouTubeLink(url=url, title=meta.get("title") or url, duration=meta.get("duration"))
+                YouTubeLink(
+                    url=url,
+                    title=meta.get("title") or url,
+                    duration=meta.get("duration"),
+                )
             )
         await session.commit()
 

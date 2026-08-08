@@ -6,7 +6,7 @@ from aiogram.types import CallbackQuery, Message
 
 from bot.keyboards import main_menu_kb
 from bot.path_validation import is_valid_path
-from bot.services import buffer_media_group, process_and_save
+from bot.services import process_data
 from core.settings_repo import get_setting, set_setting
 
 router = Router(name="main")
@@ -16,6 +16,7 @@ router = Router(name="main")
 async def cmd_start(message: Message) -> None:
     admin_raw = await get_setting("admin_chat_id")
     if admin_raw is None:
+        # Single-user: первый /start фиксирует admin (в settings/БД — общий источник для bot+api)
         await set_setting("admin_chat_id", str(message.from_user.id))
     await message.answer(
         "Привет! Я буду сохранять твои сообщения в Obsidian.\nВыбери действие:",
@@ -41,7 +42,8 @@ async def _issue_token(message: Message) -> None:
     token = secrets.token_hex(32)
     await set_setting("bearer_token", token)
     await message.answer(
-        f"🔑 Твой Bearer-токен:\n\n{token}\n\nВставь его в настройки Obsidian-плагина."
+        f"🔑 Твой Bearer-токен:\n\n`{token}`\n\nВставь его в настройки Obsidian-плагина.",
+        parse_mode="Markdown",
     )
 
 
@@ -50,7 +52,6 @@ async def cmd_get_token(message: Message) -> None:
     await _issue_token(message)
 
 
-# --- Callbacks ---
 @router.callback_query(F.data == "about")
 async def cb_about(callback: CallbackQuery) -> None:
     await callback.message.answer(
@@ -71,14 +72,9 @@ async def cb_get_token(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-# --- Контент ---
-# Альбомы собираем в буфер
-@router.message(lambda m: bool(m.media_group_id))
-async def media_group_handler(message: Message) -> None:
-    await buffer_media_group(message)
-
-
-# Одиночные сообщения (текст / фото / видео / документ)
+# Альбомы перехватывает AlbumBufferMiddleware; здесь только одиночные сообщения
 @router.message(F.text | F.photo | F.video | F.document)
 async def content_handler(message: Message) -> None:
-    await process_and_save([message])
+    if message.media_group_id:
+        return
+    await process_data([message])

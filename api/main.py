@@ -17,22 +17,22 @@ app = FastAPI(title="TG -> Obsidian API", version="1.0.0")
 app.include_router(api_router)
 
 
-@app.get("/health")
-async def health():
-    """Liveness для Railway: процесс жив и слушает порт (без проверки БД)."""
+@app.get("/live")
+async def live():
+    """Liveness для Railway/оркестраторов: процесс слушает порт."""
     return {"status": "ok"}
 
 
-@app.get("/ready")
-async def ready():
-    """Readiness: приложение + база доступны."""
+@app.get("/health")
+async def health():
+    """Проверка связи с БД (по ТЗ)."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        return {"status": "ready", "database": "connected"}
+        return {"status": "ok", "database": "connected"}
     except Exception:
-        logger.exception("Readiness check failed")
+        logger.exception("Healthcheck failed")
         return JSONResponse(
             status_code=503,
-            content={"status": "not_ready", "database": "disconnected"},
+            content={"status": "error", "database": "disconnected"},
         )

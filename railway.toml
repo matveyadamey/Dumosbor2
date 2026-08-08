@@ -7,7 +7,7 @@ watchPatterns = ["**/*.py", "requirements.txt", "Dockerfile", "railway.toml"]
 # Миграции до старта приложения — иначе healthcheck ждёт, пока alembic держит порт закрытым
 preDeployCommand = ["alembic upgrade head"]
 startCommand = "python -u runner.py"
-healthcheckPath = "/health"
+healthcheckPath = "/live"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

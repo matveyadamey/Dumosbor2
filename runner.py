@@ -1,15 +1,10 @@
 import asyncio
 import logging
 import os
-import time
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
 import uvicorn
 
-from api.main import app
 from core.config import settings
-from core.database import engine
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,45 +13,47 @@ logging.basicConfig(
 logger = logging.getLogger("runner")
 
 
-async def wait_for_db(max_retries=30, delay=5):
-    """Ожидание готовности базы данных."""
-    for attempt in range(max_retries):
-        try:
-            # Попытка подключения к базе данных
-            async with engine.connect() as conn:
-                await conn.execute(text("SELECT 1"))
-            logger.info(f"Database is ready after {attempt + 1} attempts.")
-            return True
-        except OperationalError as e:
-            logger.warning(f"Attempt {attempt + 1} to connect to DB failed: {e}")
-            if attempt < max_retries - 1:
-                logger.info(f"Retrying in {delay} seconds...")
-                time.sleep(delay)
-            else:
-                logger.error("Failed to connect to DB after maximum retries.")
-                return False
-    return False
+async def run_api() -> None:
+    from api.main import app
+
+    port = settings.port
+    logger.info(">>> API LISTENING ON PORT %s <<<", port)
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
+    server = uvicorn.Server(config)
+    await server.serve()
+
+
+async def run_bot() -> None:
+    from bot.main import start_polling
+
+    if not settings.bot_token:
+        logger.error("BOT_TOKEN is empty; cannot start bot")
+        return
+    logger.info(">>> BOT STARTING <<<")
+    await start_polling()
 
 
 async def main() -> None:
     logger.info(">>> RUNNER STARTING <<<")
     os.makedirs(settings.media_dir, exist_ok=True)
 
-    port = settings.port
-    logger.info(">>> LISTENING ON PORT %s <<<", port)
+    # all (Railway) | api | bot (docker-compose)
+    mode = (os.getenv("APP_MODE") or "all").strip().lower()
+    logger.info("APP_MODE=%s", mode)
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info")
-    server = uvicorn.Server(config)
+    if mode == "api":
+        await run_api()
+        return
+    if mode == "bot":
+        await run_bot()
+        return
 
-    tasks = [asyncio.create_task(server.serve())]
-
+    tasks = [asyncio.create_task(run_api())]
     if settings.bot_token:
-        from bot.main import start_polling
-        tasks.append(asyncio.create_task(start_polling()))
+        tasks.append(asyncio.create_task(run_bot()))
         logger.info(">>> BOT task scheduled <<<")
     else:
         logger.warning("BOT_TOKEN is empty; running API only")
-
     await asyncio.gather(*tasks)
 
 

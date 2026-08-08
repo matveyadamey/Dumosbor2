@@ -1,10 +1,9 @@
-import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
 
 from bot.handlers import router
-from bot.middlewares import AdminFilterMiddleware
+from bot.middlewares import AdminFilterMiddleware, AlbumBufferMiddleware
 from core.config import settings
 
 logger = logging.getLogger("bot")
@@ -15,6 +14,7 @@ async def _run_polling() -> None:
     dp = Dispatcher()
     dp.message.outer_middleware(AdminFilterMiddleware())
     dp.callback_query.outer_middleware(AdminFilterMiddleware())
+    dp.message.middleware(AlbumBufferMiddleware())
     dp.include_router(router)
     await bot.delete_webhook(drop_pending_updates=True)
     logger.info("Polling started")
@@ -25,6 +25,8 @@ async def _run_polling() -> None:
 
 
 async def start_polling() -> None:
+    import asyncio
+
     while True:
         try:
             await _run_polling()

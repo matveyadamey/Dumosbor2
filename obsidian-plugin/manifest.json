@@ -1,0 +1,9 @@
+{
+  "id": "tg-obsidian-sync",
+  "name": "TG → Obsidian Sync",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Синхронизация текстов, медиа и YouTube-ссылок из Telegram через FastAPI.",
+  "author": "Dumosbor",
+  "isDesktopOnly": false
+}

@@ -3,6 +3,7 @@ from typing import Any, Awaitable, Callable, Dict, Optional
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
 
+from bot.services import buffer_media_group
 from core.settings_repo import get_setting
 
 
@@ -29,3 +30,18 @@ class AdminFilterMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         return None
+
+
+class AlbumBufferMiddleware(BaseMiddleware):
+    """Группирует сообщения альбома по media_group_id с задержкой 1.5с."""
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: Dict[str, Any],
+    ) -> Optional[Any]:
+        if isinstance(event, Message) and event.media_group_id:
+            await buffer_media_group(event)
+            return None
+        return await handler(event, data)
