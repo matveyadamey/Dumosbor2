@@ -3,11 +3,11 @@ import secrets
 from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, Message
+from core.settings_repo import get_setting, set_setting
 
 from bot.keyboards import main_menu_kb
 from bot.path_validation import is_valid_path
 from bot.services import process_data
-from core.settings_repo import get_setting, set_setting
 
 router = Router(name="main")
 

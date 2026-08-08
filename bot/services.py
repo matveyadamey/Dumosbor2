@@ -3,22 +3,20 @@ import logging
 import os
 import re
 from io import BytesIO
-from typing import List, Tuple
 
 from aiogram.types import Message
-from sqlalchemy import select
-
 from core.config import settings
 from core.database import async_session_maker
 from core.models import Image, TextRecord, YouTubeLink
 from core.settings_repo import get_setting
+from sqlalchemy import select
 
 logger = logging.getLogger("bot.services")
 
 SHORT_THRESHOLD = 100
 ALBUM_FLUSH_DELAY = 1.5
 
-_pending_albums: dict[str, List[Message]] = {}
+_pending_albums: dict[str, list[Message]] = {}
 _pending_tasks: dict[str, asyncio.Task] = {}
 
 YOUTUBE_RE = re.compile(
@@ -26,13 +24,13 @@ YOUTUBE_RE = re.compile(
 )
 
 
-def find_youtube_urls(text: str) -> List[str]:
+def find_youtube_urls(text: str) -> list[str]:
     return list({m.group(0) for m in YOUTUBE_RE.finditer(text or "")})
 
 
-def _extract_media(message: Message) -> List[Tuple[str, object, str]]:
+def _extract_media(message: Message) -> list[tuple[str, object, str]]:
     """Возвращает список (kind, file_object, extension) для сообщения."""
-    items: List[Tuple[str, object, str]] = []
+    items: list[tuple[str, object, str]] = []
     if message.photo:
         items.append(("photo", message.photo[-1], ".jpg"))
     elif message.video:
@@ -67,7 +65,7 @@ async def _flush_album(gid: str) -> None:
         await process_data(messages)
 
 
-async def process_data(messages: List[Message]) -> None:
+async def process_data(messages: list[Message]) -> None:
     """Точка входа обработки входящих данных (альбом или одиночное сообщение)."""
     try:
         await save_text(messages)
@@ -79,7 +77,7 @@ async def process_data(messages: List[Message]) -> None:
 process_and_save = process_data
 
 
-async def save_text(messages: List[Message]) -> None:
+async def save_text(messages: list[Message]) -> None:
     """Запись в БД + сохранение медиа в shared volume."""
     bot = messages[0].bot
     base_message_id = messages[0].message_id
@@ -92,8 +90,8 @@ async def save_text(messages: List[Message]) -> None:
             texts.append(t.strip())
     original_text = "\n".join(texts).strip()
 
-    image_links: List[str] = []
-    image_rows: List[Tuple[str, str]] = []
+    image_links: list[str] = []
+    image_rows: list[tuple[str, str]] = []
     index = 0
     for m in messages:
         for _kind, file_obj, ext in _extract_media(m):
@@ -136,9 +134,7 @@ async def save_text(messages: List[Message]) -> None:
             session.add(Image(text_id=rec.id, file_name=file_name, file_path=file_path))
         await session.commit()
 
-    logger.info(
-        "Saved message_id=%s images=%s short=%s", base_message_id, len(image_rows), short
-    )
+    logger.info("Saved message_id=%s images=%s short=%s", base_message_id, len(image_rows), short)
 
     if original_text:
         await handle_youtube(original_text)

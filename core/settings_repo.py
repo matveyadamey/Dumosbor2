@@ -1,12 +1,10 @@
-from typing import Optional
-
 from sqlalchemy import select
 
 from core.database import async_session_maker
 from core.models import Setting
 
 
-async def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
+async def get_setting(key: str, default: str | None = None) -> str | None:
     async with async_session_maker() as session:
         res = await session.execute(select(Setting).where(Setting.key == key))
         row = res.scalar_one_or_none()

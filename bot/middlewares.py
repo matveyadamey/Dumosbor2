@@ -1,10 +1,11 @@
-from typing import Any, Awaitable, Callable, Dict, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from aiogram import BaseMiddleware
 from aiogram.types import Message, TelegramObject
+from core.settings_repo import get_setting
 
 from bot.services import buffer_media_group
-from core.settings_repo import get_setting
 
 
 class AdminFilterMiddleware(BaseMiddleware):
@@ -12,10 +13,10 @@ class AdminFilterMiddleware(BaseMiddleware):
 
     async def __call__(
         self,
-        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any],
-    ) -> Optional[Any]:
+        data: dict[str, Any],
+    ) -> Any | None:
         user = getattr(event, "from_user", None)
         admin_raw = await get_setting("admin_chat_id")
 
@@ -37,10 +38,10 @@ class AlbumBufferMiddleware(BaseMiddleware):
 
     async def __call__(
         self,
-        handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
-        data: Dict[str, Any],
-    ) -> Optional[Any]:
+        data: dict[str, Any],
+    ) -> Any | None:
         if isinstance(event, Message) and event.media_group_id:
             await buffer_media_group(event)
             return None

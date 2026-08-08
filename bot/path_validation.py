@@ -9,6 +9,4 @@ def is_valid_path(path: str) -> bool:
     path = (path or "").strip()
     if not path:
         return False
-    if _INVALID_CHARS.search(path):
-        return False
-    return True
+    return not _INVALID_CHARS.search(path)

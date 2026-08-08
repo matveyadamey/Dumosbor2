@@ -6,5 +6,9 @@ media_data/*
 !media_data/.gitkeep
 *.log
 .DS_Store
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/
 obsidian-plugin/node_modules/
 obsidian-plugin/main.js.map

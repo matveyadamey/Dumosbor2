@@ -1,10 +1,10 @@
 import logging
 
 from aiogram import Bot, Dispatcher
+from core.config import settings
 
 from bot.handlers import router
 from bot.middlewares import AdminFilterMiddleware, AlbumBufferMiddleware
-from core.config import settings
 
 logger = logging.getLogger("bot")
 

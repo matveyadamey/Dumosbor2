@@ -1,0 +1,82 @@
+name: Release Obsidian plugin (BRAT)
+
+# BRAT ставит плагин из GitHub Release assets: main.js, manifest.json, styles.css
+# Тег: v1.0.1 → version в manifest = 1.0.1
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Plugin version without v prefix (e.g. 1.0.1)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release-plugin:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: obsidian-plugin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: obsidian-plugin/package-lock.json
+
+      - run: npm ci
+
+      - name: Bump manifest / package version
+        shell: bash
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+          const version = process.env.VERSION;
+          if (!version) throw new Error("VERSION env is required");
+          const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+          manifest.version = version;
+          fs.writeFileSync("manifest.json", JSON.stringify(manifest, null, 2) + "\n");
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          pkg.version = version;
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
+          versions[version] = manifest.minAppVersion || "1.5.0";
+          fs.writeFileSync("versions.json", JSON.stringify(versions, null, 2) + "\n");
+          NODE
+
+      - run: npm run build
+      - run: npm test
+
+      - name: Create GitHub Release for BRAT
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: TG → Obsidian Sync ${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            obsidian-plugin/main.js
+            obsidian-plugin/manifest.json
+            obsidian-plugin/styles.css
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

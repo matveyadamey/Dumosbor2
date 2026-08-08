@@ -1,11 +1,11 @@
 import logging
 
+from core.database import engine
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from api.routes import router as api_router
-from core.database import engine
 
 logging.basicConfig(
     level=logging.INFO,

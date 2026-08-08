@@ -1,18 +1,17 @@
 import logging
 import os
 import uuid
-from typing import List
 
+from core.config import settings
+from core.database import async_session_maker, engine
+from core.models import TextRecord, YouTubeLink
+from core.settings_repo import get_setting
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select, text
 
 from api.auth import require_token
-from core.config import settings
-from core.database import async_session_maker, engine
-from core.models import Image, TextRecord, YouTubeLink
-from core.settings_repo import get_setting
 
 logger = logging.getLogger("api.routes")
 
@@ -21,11 +20,12 @@ router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_token)])
 
 class TextsAckRequest(BaseModel):
     """ACK по message_id — как в ТЗ."""
-    message_ids: List[int] = Field(default_factory=list)
+
+    message_ids: list[int] = Field(default_factory=list)
 
 
 class YoutubeAckRequest(BaseModel):
-    ids: List[str] = Field(default_factory=list)
+    ids: list[str] = Field(default_factory=list)
 
 
 # ─────────────────────────── TEXTS ───────────────────────────
@@ -87,7 +87,7 @@ async def get_media(file_name: str):
         return FileResponse(path)
     except Exception:
         logger.exception("Failed to stream media file=%s", safe_name)
-        raise HTTPException(status_code=500, detail="Failed to read media file")
+        raise HTTPException(status_code=500, detail="Failed to read media file") from None
 
 
 # ─────────────────────────── YOUTUBE ───────────────────────────
@@ -119,12 +119,10 @@ async def ack_youtube(req: YoutubeAckRequest):
     try:
         uuid_ids = [uuid.UUID(i) for i in req.ids]
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid UUID in ids")
+        raise HTTPException(status_code=400, detail="Invalid UUID in ids") from None
 
     async with async_session_maker() as session:
-        res = await session.execute(
-            select(YouTubeLink).where(YouTubeLink.id.in_(uuid_ids))
-        )
+        res = await session.execute(select(YouTubeLink).where(YouTubeLink.id.in_(uuid_ids)))
         links = res.scalars().all()
         for link in links:
             link.synced = True
@@ -183,7 +181,9 @@ async def cleanup():
     media_removed = _clear_media_dir()
 
     async with engine.begin() as conn:
-        await conn.execute(text("TRUNCATE TABLE images, texts, youtube_links RESTART IDENTITY CASCADE"))
+        await conn.execute(
+            text("TRUNCATE TABLE images, texts, youtube_links RESTART IDENTITY CASCADE")
+        )
 
     return {
         "deleted_in_tg": deleted_in_tg,

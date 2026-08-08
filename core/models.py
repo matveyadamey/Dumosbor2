@@ -19,9 +19,7 @@ from core.database import Base
 class TextRecord(Base):
     __tablename__ = "texts"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     message_id: Mapped[int] = mapped_column(BigInteger, index=True, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     short: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -36,9 +34,7 @@ class TextRecord(Base):
 class Image(Base):
     __tablename__ = "images"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     text_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("texts.id", ondelete="CASCADE"),
@@ -54,9 +50,7 @@ class Image(Base):
 class YouTubeLink(Base):
     __tablename__ = "youtube_links"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     url: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     duration: Mapped[int | None] = mapped_column(Integer, nullable=True)

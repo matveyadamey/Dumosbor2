@@ -1,13 +1,14 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from typing import Annotated
 
 from core.settings_repo import get_setting
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 security = HTTPBearer(auto_error=False)
 
 
 async def require_token(
-    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
 ) -> str:
     """Проверяет Bearer-токен из заголовка Authorization против сохранённого в settings."""
     if credentials is None:

@@ -7,12 +7,11 @@ import asyncio
 import os
 from logging.config import fileConfig
 
+from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-
-from alembic import context
 
 load_dotenv()
 
@@ -28,6 +27,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 from core.models import Base  # noqa: E402
+
 target_metadata = Base.metadata
 
 

@@ -10,6 +10,7 @@ from core.config import settings
 
 class Base(DeclarativeBase):
     """Базовый класс для всех моделей."""
+
     pass
 
 
