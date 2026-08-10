@@ -18,6 +18,34 @@ export const DEFAULT_SETTINGS: PluginSettings = {
   fetchOnStartup: false,
 };
 
+/**
+ * Приводит Server URL к виду, который принимает Obsidian requestUrl.
+ * Без схемы Electron падает: "ClientRequest only supports http: and https:".
+ */
+export function normalizeServerUrl(raw: string): string {
+  let url = (raw || "").trim().replace(/\/+$/, "");
+  if (!url) {
+    throw new Error("Server URL пустой — укажи адрес API в настройках плагина");
+  }
+  // часто вставляют railway-домен без https://
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) {
+    url = `https://${url}`;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Некорректный Server URL: ${raw}`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(
+      `Server URL должен начинаться с http:// или https:// (сейчас: ${parsed.protocol})`,
+    );
+  }
+  // origin без завершающего слэша; path у базового URL обычно не нужен
+  return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, "");
+}
+
 /** Убирает недопустимые символы из имени файла; fallback при пустом/эмодзи. */
 export function sanitizeFileName(text: string, messageId: number): string {
   const cleaned = (text || "")

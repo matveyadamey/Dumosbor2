@@ -26,8 +26,68 @@ var import_obsidian5 = require("obsidian");
 
 // src/api.ts
 var import_obsidian = require("obsidian");
+
+// src/utils.ts
+var DEFAULT_SETTINGS = {
+  serverUrl: "http://localhost:8000",
+  bearerToken: "",
+  imagePath: "attachments",
+  articlesDir: "articles",
+  dailyNoteDir: "daily",
+  youtubeFilePath: "youtube.md",
+  fetchOnStartup: false
+};
+function normalizeServerUrl(raw) {
+  let url = (raw || "").trim().replace(/\/+$/, "");
+  if (!url) {
+    throw new Error("Server URL \u043F\u0443\u0441\u0442\u043E\u0439 \u2014 \u0443\u043A\u0430\u0436\u0438 \u0430\u0434\u0440\u0435\u0441 API \u0432 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u0445 \u043F\u043B\u0430\u0433\u0438\u043D\u0430");
+  }
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)) {
+    url = `https://${url}`;
+  }
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 Server URL: ${raw}`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(
+      `Server URL \u0434\u043E\u043B\u0436\u0435\u043D \u043D\u0430\u0447\u0438\u043D\u0430\u0442\u044C\u0441\u044F \u0441 http:// \u0438\u043B\u0438 https:// (\u0441\u0435\u0439\u0447\u0430\u0441: ${parsed.protocol})`
+    );
+  }
+  return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, "");
+}
+function sanitizeFileName(text, messageId) {
+  const cleaned = (text || "").replace(/[?<>\\:*|"]/g, "").replace(/\s+/g, " ").trim().slice(0, 20).trim();
+  if (!cleaned || !/[0-9A-Za-zА-Яа-яЁё]/.test(cleaned)) {
+    return `article_${messageId}`;
+  }
+  return cleaned;
+}
+function formatDuration(seconds) {
+  if (seconds == null || Number.isNaN(seconds)) {
+    return "?:??";
+  }
+  const total = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+function formatDateOnly(iso) {
+  try {
+    return iso.slice(0, 10);
+  } catch {
+    return iso;
+  }
+}
+function stripWikiImageLinks(content) {
+  return (content || "").replace(/!\[\[[^\]]*\]\]\n?/g, "").trim();
+}
+
+// src/api.ts
 function apiBase(settings) {
-  return settings.serverUrl.replace(/\/+$/, "");
+  return normalizeServerUrl(settings.serverUrl);
 }
 function authHeaders(settings) {
   return {
@@ -145,7 +205,12 @@ var TgObsidianSettingTab = class extends import_obsidian3.PluginSettingTab {
         })
       );
     };
-    addText("Server URL", "\u0411\u0430\u0437\u043E\u0432\u044B\u0439 URL FastAPI (\u0431\u0435\u0437 /api/v1)", "serverUrl", "http://localhost:8000");
+    addText(
+      "Server URL",
+      "\u0411\u0430\u0437\u043E\u0432\u044B\u0439 URL FastAPI \u0441 https:// (\u0431\u0435\u0437 /api/v1). \u041F\u0440\u0438\u043C\u0435\u0440: https://xxx.up.railway.app",
+      "serverUrl",
+      "https://your-app.up.railway.app"
+    );
     addText("Bearer Token", "\u0422\u043E\u043A\u0435\u043D \u0438\u0437 /get_token \u0431\u043E\u0442\u0430", "bearerToken");
     addText("Image Path", "\u041F\u0430\u043F\u043A\u0430 \u0432 vault \u0434\u043B\u044F \u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A", "imagePath", "attachments");
     addText("Articles Dir", "\u041F\u0430\u043F\u043A\u0430 \u0434\u043B\u044F short=false", "articlesDir", "articles");
@@ -167,45 +232,6 @@ var TgObsidianSettingTab = class extends import_obsidian3.PluginSettingTab {
 
 // src/sync.ts
 var import_obsidian4 = require("obsidian");
-
-// src/utils.ts
-var DEFAULT_SETTINGS = {
-  serverUrl: "http://localhost:8000",
-  bearerToken: "",
-  imagePath: "attachments",
-  articlesDir: "articles",
-  dailyNoteDir: "daily",
-  youtubeFilePath: "youtube.md",
-  fetchOnStartup: false
-};
-function sanitizeFileName(text, messageId) {
-  const cleaned = (text || "").replace(/[?<>\\:*|"]/g, "").replace(/\s+/g, " ").trim().slice(0, 20).trim();
-  if (!cleaned || !/[0-9A-Za-zА-Яа-яЁё]/.test(cleaned)) {
-    return `article_${messageId}`;
-  }
-  return cleaned;
-}
-function formatDuration(seconds) {
-  if (seconds == null || Number.isNaN(seconds)) {
-    return "?:??";
-  }
-  const total = Math.max(0, Math.floor(seconds));
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-function formatDateOnly(iso) {
-  try {
-    return iso.slice(0, 10);
-  } catch {
-    return iso;
-  }
-}
-function stripWikiImageLinks(content) {
-  return (content || "").replace(/!\[\[[^\]]*\]\]\n?/g, "").trim();
-}
-
-// src/sync.ts
 var TELEGRAM_INBOX_HEADING = "#telegram inbox";
 var DAILY_TEMPLATE_PATH = "templates/daily_note_template.md";
 function joinPath(...parts) {
@@ -322,8 +348,15 @@ async function appendYoutube(app, settings, item) {
   await app.vault.modify(file, `${current}${sep}${line}`);
 }
 async function runSync(app, settings) {
-  if (!settings.serverUrl || !settings.bearerToken) {
+  if (!settings.serverUrl?.trim() || !settings.bearerToken?.trim()) {
     new import_obsidian4.Notice("\u0423\u043A\u0430\u0436\u0438 Server URL \u0438 Bearer Token \u0432 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0430\u0445 \u043F\u043B\u0430\u0433\u0438\u043D\u0430");
+    return;
+  }
+  try {
+    normalizeServerUrl(settings.serverUrl);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    new import_obsidian4.Notice(msg);
     return;
   }
   new import_obsidian4.Notice("\u0421\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u044F \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u043E\u043C\u2026");

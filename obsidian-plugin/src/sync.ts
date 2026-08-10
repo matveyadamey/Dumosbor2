@@ -11,6 +11,7 @@ import {
 import {
   formatDateOnly,
   formatDuration,
+  normalizeServerUrl,
   sanitizeFileName,
   stripWikiImageLinks,
   type PluginSettings,
@@ -147,8 +148,16 @@ async function appendYoutube(
 }
 
 export async function runSync(app: App, settings: PluginSettings): Promise<void> {
-  if (!settings.serverUrl || !settings.bearerToken) {
+  if (!settings.serverUrl?.trim() || !settings.bearerToken?.trim()) {
     new Notice("Укажи Server URL и Bearer Token в настройках плагина");
+    return;
+  }
+
+  try {
+    normalizeServerUrl(settings.serverUrl);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    new Notice(msg);
     return;
   }
 

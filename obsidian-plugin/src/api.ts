@@ -1,5 +1,5 @@
 import { requestUrl } from "obsidian";
-import type { PluginSettings } from "./utils";
+import { normalizeServerUrl, type PluginSettings } from "./utils";
 
 export interface TextItem {
   id: string;
@@ -19,7 +19,7 @@ export interface YoutubeItem {
 }
 
 function apiBase(settings: PluginSettings): string {
-  return settings.serverUrl.replace(/\/+$/, "");
+  return normalizeServerUrl(settings.serverUrl);
 }
 
 function authHeaders(settings: PluginSettings): Record<string, string> {

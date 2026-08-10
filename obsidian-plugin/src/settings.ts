@@ -37,7 +37,12 @@ export class TgObsidianSettingTab extends PluginSettingTab {
         );
     };
 
-    addText("Server URL", "Базовый URL FastAPI (без /api/v1)", "serverUrl", "http://localhost:8000");
+    addText(
+      "Server URL",
+      "Базовый URL FastAPI с https:// (без /api/v1). Пример: https://xxx.up.railway.app",
+      "serverUrl",
+      "https://your-app.up.railway.app",
+    );
     addText("Bearer Token", "Токен из /get_token бота", "bearerToken");
     addText("Image Path", "Папка в vault для картинок", "imagePath", "attachments");
     addText("Articles Dir", "Папка для short=false", "articlesDir", "articles");

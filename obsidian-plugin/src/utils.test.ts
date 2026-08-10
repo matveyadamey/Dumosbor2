@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatDateOnly,
   formatDuration,
+  normalizeServerUrl,
   sanitizeFileName,
   stripWikiImageLinks,
 } from "./utils";
@@ -18,6 +19,24 @@ describe("sanitizeFileName", () => {
   it("falls back for empty/emoji", () => {
     expect(sanitizeFileName("", 9)).toBe("article_9");
     expect(sanitizeFileName("🔥🔥", 9)).toBe("article_9");
+  });
+});
+
+describe("normalizeServerUrl", () => {
+  it("keeps http(s) URLs", () => {
+    expect(normalizeServerUrl("https://app.up.railway.app/")).toBe(
+      "https://app.up.railway.app",
+    );
+    expect(normalizeServerUrl("http://localhost:8000")).toBe("http://localhost:8000");
+  });
+
+  it("adds https when scheme is missing", () => {
+    expect(normalizeServerUrl("app.up.railway.app")).toBe("https://app.up.railway.app");
+  });
+
+  it("rejects empty and bad protocols", () => {
+    expect(() => normalizeServerUrl("")).toThrow(/пустой/);
+    expect(() => normalizeServerUrl("ftp://example.com")).toThrow(/http/);
   });
 });
 
