@@ -135,7 +135,7 @@ Compose дополнительно использует `POSTGRES_USER` / `POSTG
 2. `process_data` → `save_text`:
    - медиа: `{message_id}_{index}.{ext}` в `MEDIA_DIR`;
    - в текст: `![[{image_path}/{file_name}]]`;
-   - `short=True`, если «чистый» текст (без вики-ссылок) **&lt; 100** символов.
+   - `short=True`, если «чистый» текст (без вики-ссылок) **&lt; 300** символов.
 3. YouTube URL → `asyncio.to_thread(yt_dlp)` → таблица `youtube_links` (unique по `url`).
 
 ## FastAPI

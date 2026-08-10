@@ -13,8 +13,10 @@ from sqlalchemy import select
 
 logger = logging.getLogger("bot.services")
 
-SHORT_THRESHOLD = 100
+SHORT_THRESHOLD = 300
 ALBUM_FLUSH_DELAY = 1.5
+
+IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg"}
 
 _pending_albums: dict[str, list[Message]] = {}
 _pending_tasks: dict[str, asyncio.Task] = {}
@@ -28,21 +30,57 @@ def find_youtube_urls(text: str) -> list[str]:
     return list({m.group(0) for m in YOUTUBE_RE.finditer(text or "")})
 
 
+def _ext_from_name(file_name: str | None, default: str) -> str:
+    if not file_name:
+        return default
+    ext = os.path.splitext(file_name)[1]
+    return ext if ext else default
+
+
 def _extract_media(message: Message) -> list[tuple[str, object, str]]:
-    """Возвращает список (kind, file_object, extension) для сообщения."""
+    """Любые вложения: фото, видео, документы (pdf и т.д.), аудио, voice, gif."""
     items: list[tuple[str, object, str]] = []
     if message.photo:
         items.append(("photo", message.photo[-1], ".jpg"))
-    elif message.video:
+    if message.video:
         items.append(("video", message.video, ".mp4"))
-    elif message.document:
-        ext = ".bin"
-        if message.document.file_name:
-            e = os.path.splitext(message.document.file_name)[1]
-            if e:
-                ext = e
-        items.append(("document", message.document, ext))
+    if message.animation:
+        items.append(
+            (
+                "animation",
+                message.animation,
+                _ext_from_name(getattr(message.animation, "file_name", None), ".mp4"),
+            )
+        )
+    if message.document:
+        items.append(
+            (
+                "document",
+                message.document,
+                _ext_from_name(message.document.file_name, ".bin"),
+            )
+        )
+    if message.audio:
+        items.append(
+            (
+                "audio",
+                message.audio,
+                _ext_from_name(message.audio.file_name, ".mp3"),
+            )
+        )
+    if message.voice:
+        items.append(("voice", message.voice, ".ogg"))
+    if message.video_note:
+        items.append(("video_note", message.video_note, ".mp4"))
     return items
+
+
+def _wiki_embed(image_path: str, file_name: str, ext: str) -> str:
+    """Картинки — с шириной 300; остальные файлы (pdf и т.д.) — обычный embed."""
+    target = f"{image_path}/{file_name}"
+    if ext.lower() in IMAGE_EXTS:
+        return f"![[{target}|300]]\n"
+    return f"![[{target}]]\n"
 
 
 async def buffer_media_group(message: Message) -> None:
@@ -96,7 +134,8 @@ async def save_text(messages: list[Message]) -> None:
     for m in messages:
         for _kind, file_obj, ext in _extract_media(m):
             index += 1
-            file_name = f"{base_message_id}_{index}{ext}"
+            # единый формат имени; расширение из оригинала (pdf, docx, …)
+            file_name = f"{base_message_id}_{index}{ext.lower()}"
             try:
                 buf = BytesIO()
                 await bot.download(file_obj, destination=buf)
@@ -111,7 +150,7 @@ async def save_text(messages: list[Message]) -> None:
                     file_name,
                 )
                 continue
-            image_links.append(f"![[{image_path}/{file_name}]]\n")
+            image_links.append(_wiki_embed(image_path, file_name, ext))
             image_rows.append((file_name, file_name))
 
     content = "".join(image_links)

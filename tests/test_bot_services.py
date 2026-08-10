@@ -33,7 +33,7 @@ def test_find_youtube_urls(text: str, expected_count: int) -> None:
 
 
 def test_short_threshold_constant() -> None:
-    assert SHORT_THRESHOLD == 100
+    assert SHORT_THRESHOLD == 300
 
 
 @pytest.mark.asyncio
@@ -128,7 +128,11 @@ async def test_save_text_writes_db_and_file(monkeypatch, tmp_path) -> None:
     message.text = None
     message.photo = [photo]
     message.video = None
+    message.animation = None
     message.document = None
+    message.audio = None
+    message.voice = None
+    message.video_note = None
     message.bot = MagicMock()
 
     async def fake_download(file, destination):
@@ -161,29 +165,38 @@ async def test_save_text_writes_db_and_file(monkeypatch, tmp_path) -> None:
 
 @pytest.mark.asyncio
 async def test_extract_media_video_and_document() -> None:
-    from bot.services import _extract_media
+    from bot.services import _extract_media, _wiki_embed
 
-    video_msg = MagicMock()
-    video_msg.photo = None
+    def _empty_media_msg() -> MagicMock:
+        msg = MagicMock()
+        msg.photo = None
+        msg.video = None
+        msg.animation = None
+        msg.document = None
+        msg.audio = None
+        msg.voice = None
+        msg.video_note = None
+        return msg
+
+    video_msg = _empty_media_msg()
     video_msg.video = MagicMock()
-    video_msg.document = None
     assert _extract_media(video_msg)[0][0] == "video"
     assert _extract_media(video_msg)[0][2] == ".mp4"
 
-    doc_msg = MagicMock()
-    doc_msg.photo = None
-    doc_msg.video = None
+    doc_msg = _empty_media_msg()
     doc = MagicMock()
     doc.file_name = "note.PDF"
     doc_msg.document = doc
     assert _extract_media(doc_msg)[0][2] == ".PDF"
 
-    bare = MagicMock()
-    bare.photo = None
-    bare.video = None
+    bare = _empty_media_msg()
     bare.document = MagicMock()
     bare.document.file_name = None
     assert _extract_media(bare)[0][2] == ".bin"
+
+    assert _wiki_embed("att", "1_1.jpg", ".jpg") == "![[att/1_1.jpg|300]]\n"
+    assert _wiki_embed("att", "1_1.pdf", ".pdf") == "![[att/1_1.pdf]]\n"
+    assert _wiki_embed("att", "1_1.PDF", ".PDF") == "![[att/1_1.PDF]]\n"
 
 
 @pytest.mark.asyncio
@@ -239,7 +252,11 @@ async def test_save_text_skips_empty(monkeypatch) -> None:
     message.text = None
     message.photo = None
     message.video = None
+    message.animation = None
     message.document = None
+    message.audio = None
+    message.voice = None
+    message.video_note = None
     message.bot = MagicMock()
 
     session = AsyncMock()

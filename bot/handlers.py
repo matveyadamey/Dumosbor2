@@ -72,8 +72,10 @@ async def cb_get_token(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
-# Альбомы перехватывает AlbumBufferMiddleware; здесь только одиночные сообщения
-@router.message(F.text | F.photo | F.video | F.document)
+# Альбомы перехватывает AlbumBufferMiddleware; здесь одиночные сообщения с контентом/файлами
+@router.message(
+    F.text | F.photo | F.video | F.document | F.animation | F.audio | F.voice | F.video_note
+)
 async def content_handler(message: Message) -> None:
     if message.media_group_id:
         return
