@@ -46,16 +46,28 @@ export function normalizeServerUrl(raw: string): string {
   return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, "");
 }
 
-/** Убирает недопустимые символы из имени файла; fallback при пустом/эмодзи. */
+/** Убирает недопустимые символы из имени файла; всегда один path-segment. */
 export function sanitizeFileName(text: string, messageId: number): string {
-  const cleaned = (text || "")
-    .replace(/[?<>\\:*|"]/g, "")
+  // берём первую строку — иначе переносы/`/` из текста превращаются в папки
+  const firstLine = (text || "").split(/\r?\n/, 1)[0] ?? "";
+
+  let cleaned = firstLine
+    // Windows + path separators (ТЗ + `/`, т.к. Obsidian joinPath создаёт вложенность)
+    .replace(/[?<>\\/:*|"\u0000-\u001f]/g, " ")
+    // типографские кавычки и прочее, что ломает FS
+    .replace(/[“”«»„]/g, "")
     .replace(/\s+/g, " ")
     .trim()
+    // Windows: нельзя заканчиваться точкой/пробелом; убрать ведущие ./_
+    .replace(/^[.\s_-]+/, "")
+    .replace(/[.\s]+$/, "")
     .slice(0, 20)
+    .replace(/[.\s]+$/, "")
     .trim();
 
-  // если после очистки нет «обычных» символов (эмодзи/пусто) — fallback
+  // страховка: в имени не должно остаться разделителей пути
+  cleaned = cleaned.replace(/[\\/]/g, "").trim();
+
   if (!cleaned || !/[0-9A-Za-zА-Яа-яЁё]/.test(cleaned)) {
     return `article_${messageId}`;
   }

@@ -13,12 +13,23 @@ describe("sanitizeFileName", () => {
   });
 
   it("strips illegal characters", () => {
-    expect(sanitizeFileName('a?b<c>d:e*f|g"h', 2)).toBe("abcdefgh");
+    expect(sanitizeFileName('a?b<c>d:e*f|g"h', 2)).toBe("a b c d e f g h");
+  });
+
+  it("does not create nested paths from slashes", () => {
+    expect(sanitizeFileName("- Sber AI/девайсы/Камера", 3)).toBe("Sber AI девайсы Каме");
+    expect(sanitizeFileName("foo\\bar\\baz", 4)).toBe("foo bar baz");
+    expect(sanitizeFileName("a/b", 1).includes("/")).toBe(false);
+  });
+
+  it("uses only the first line", () => {
+    expect(sanitizeFileName("Заголовок\nвторая строка длинная", 5)).toBe("Заголовок");
   });
 
   it("falls back for empty/emoji", () => {
     expect(sanitizeFileName("", 9)).toBe("article_9");
     expect(sanitizeFileName("🔥🔥", 9)).toBe("article_9");
+    expect(sanitizeFileName("///", 9)).toBe("article_9");
   });
 });
 

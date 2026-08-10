@@ -59,7 +59,9 @@ function normalizeServerUrl(raw) {
   return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, "");
 }
 function sanitizeFileName(text, messageId) {
-  const cleaned = (text || "").replace(/[?<>\\:*|"]/g, "").replace(/\s+/g, " ").trim().slice(0, 20).trim();
+  const firstLine = (text || "").split(/\r?\n/, 1)[0] ?? "";
+  let cleaned = firstLine.replace(/[?<>\\/:*|"\u0000-\u001f]/g, " ").replace(/[“”«»„]/g, "").replace(/\s+/g, " ").trim().replace(/^[.\s_-]+/, "").replace(/[.\s]+$/, "").slice(0, 20).replace(/[.\s]+$/, "").trim();
+  cleaned = cleaned.replace(/[\\/]/g, "").trim();
   if (!cleaned || !/[0-9A-Za-zА-Яа-яЁё]/.test(cleaned)) {
     return `article_${messageId}`;
   }
@@ -278,7 +280,7 @@ async function downloadImages(app, settings, item) {
 async function writeArticle(app, settings, item) {
   await ensureFolder(app, settings.articlesDir);
   const plain = stripWikiImageLinks(item.content);
-  const base = sanitizeFileName(plain, item.message_id);
+  const base = sanitizeFileName(plain, item.message_id).replace(/[\\/]/g, "");
   let filePath = joinPath(settings.articlesDir, `${base}.md`);
   let n = 1;
   while (await app.vault.adapter.exists(filePath)) {

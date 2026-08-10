@@ -74,7 +74,8 @@ async function writeArticle(
 ): Promise<void> {
   await ensureFolder(app, settings.articlesDir);
   const plain = stripWikiImageLinks(item.content);
-  const base = sanitizeFileName(plain, item.message_id);
+  // только basename — на случай если санитайзер когда-то пропустит разделитель
+  const base = sanitizeFileName(plain, item.message_id).replace(/[\\/]/g, "");
   let filePath = joinPath(settings.articlesDir, `${base}.md`);
   let n = 1;
   while (await app.vault.adapter.exists(filePath)) {
