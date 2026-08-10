@@ -68,6 +68,17 @@ jobs:
       - run: npm run build
       - run: npm test
 
+      - name: Ensure release assets are non-empty
+        shell: bash
+        run: |
+          for f in main.js manifest.json styles.css; do
+            if [ ! -s "$f" ]; then
+              echo "Release asset must be non-empty: $f" >&2
+              ls -la "$f" || true
+              exit 1
+            fi
+          done
+
       - name: Create GitHub Release for BRAT
         uses: softprops/action-gh-release@v2
         with:
